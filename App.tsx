@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Color, AppView, GeneratedImage } from './types';
+import { Color, AppView } from './types';
 import { generatePalette, createColorObject } from './utils/colorUtils';
-import { generateImage as generateImageService, extractPaletteFromImage as extractPaletteFromImageService } from './services/geminiService';
+import { extractPaletteFromImage as extractPaletteFromImageService } from './services/geminiService';
 import Header from './components/Header';
 import ColorPalette from './components/ColorPalette';
-import ImageGenerator from './components/ImageGenerator';
+import MockupVisualizer from './components/MockupVisualizer';
 import FavoritesPanel from './components/FavoritesPanel';
 import AccountModal from './components/AccountModal';
 import TrendingPage from './components/TrendingPage';
-import tinycolor from 'tinycolor2';
+import GradientPage from './components/GradientPage';
+import ImageRecolorPage from './components/ImageRecolorPage';
 
 interface HistoryState {
   palette: Color[];
@@ -20,8 +21,6 @@ const App: React.FC = () => {
   const [palette, setPalette] = useState<Color[]>([]);
   const [harmony, setHarmony] = useState<string | null>(null);
   const [appView, setAppView] = useState<AppView>(AppView.Palette);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [baseColorForContrast, setBaseColorForContrast] = useState<string | null>(null);
   const [favoritePalettes, setFavoritePalettes] = useState<string[][]>([]);
   const [isFavoritesPanelOpen, setIsFavoritesPanelOpen] = useState(false);
@@ -32,6 +31,7 @@ const App: React.FC = () => {
   // Transition State for Shutter Effect
   const [previousPalette, setPreviousPalette] = useState<Color[]>([]);
   const [transitionId, setTransitionId] = useState<number>(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   
   // Account State
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
@@ -41,9 +41,6 @@ const App: React.FC = () => {
   const [past, setPast] = useState<HistoryState[]>([]);
   const [future, setFuture] = useState<HistoryState[]>([]);
 
-  // Image Generation History
-  const [imageHistory, setImageHistory] = useState<GeneratedImage[]>([]);
-
   const initialPaletteGenerated = useRef(false);
 
   // Load data from localStorage on initial render
@@ -52,10 +49,6 @@ const App: React.FC = () => {
       const savedFavorites = localStorage.getItem('favoritePalettes');
       if (savedFavorites) {
         setFavoritePalettes(JSON.parse(savedFavorites));
-      }
-      const savedImages = localStorage.getItem('imageHistory');
-      if (savedImages) {
-        setImageHistory(JSON.parse(savedImages));
       }
       const savedUser = localStorage.getItem('userSession');
       if (savedUser) {
@@ -74,14 +67,6 @@ const App: React.FC = () => {
       console.error("Failed to save favorite palettes", e);
     }
   }, [favoritePalettes]);
-
-  useEffect(() => {
-    try {
-        localStorage.setItem('imageHistory', JSON.stringify(imageHistory));
-    } catch (e) {
-        console.error("Failed to save image history", e);
-    }
-  }, [imageHistory]);
   
   useEffect(() => {
       if (user) {
@@ -104,22 +89,30 @@ const App: React.FC = () => {
       setHarmony(newHarmony);
   }, [palette, harmony]);
 
+  // Trigger state update and force remount for transition
+  const animatePaletteUpdate = useCallback((updateAction: () => void) => {
+      if (isTransitioning) return;
+
+      setIsTransitioning(true);
+      setPreviousPalette(palette);
+      setTransitionId(prev => prev + 1);
+      updateAction();
+  }, [palette, isTransitioning]);
+
   const handleUndo = useCallback(() => {
       if (past.length === 0) return;
 
       const previous = past[past.length - 1];
       const newPast = past.slice(0, past.length - 1);
 
-      // Trigger transition for Undo
-      setPreviousPalette(palette);
-      setTransitionId(prev => prev + 1);
-
-      setFuture(prev => [{ palette, harmony }, ...prev]);
-      setPalette(previous.palette);
-      setHarmony(previous.harmony);
-      setPast(newPast);
-      setBaseColorForContrast(null);
-  }, [past, palette, harmony]);
+      animatePaletteUpdate(() => {
+          setFuture(prev => [{ palette, harmony }, ...prev]);
+          setPalette(previous.palette);
+          setHarmony(previous.harmony);
+          setPast(newPast);
+          setBaseColorForContrast(null);
+      });
+  }, [past, palette, harmony, animatePaletteUpdate]);
 
   const handleRedo = useCallback(() => {
       if (future.length === 0) return;
@@ -127,31 +120,22 @@ const App: React.FC = () => {
       const next = future[0];
       const newFuture = future.slice(1);
 
-      // Trigger transition for Redo
-      setPreviousPalette(palette);
-      setTransitionId(prev => prev + 1);
-
-      setPast(prev => {
-          const newPast = [...prev, { palette, harmony }];
-          return newPast.length > 3 ? newPast.slice(newPast.length - 3) : newPast;
+      animatePaletteUpdate(() => {
+          setPast(prev => {
+              const newPast = [...prev, { palette, harmony }];
+              return newPast.length > 3 ? newPast.slice(newPast.length - 3) : newPast;
+          });
+          setPalette(next.palette);
+          setHarmony(next.harmony);
+          setFuture(newFuture);
+          setBaseColorForContrast(null);
       });
-      setPalette(next.palette);
-      setHarmony(next.harmony);
-      setFuture(newFuture);
-      setBaseColorForContrast(null);
-  }, [future, palette, harmony]);
-
-  // Trigger state update and force remount for transition
-  const animatePaletteUpdate = useCallback((updateAction: () => void) => {
-      setPreviousPalette(palette);
-      setTransitionId(prev => prev + 1);
-      updateAction();
-  }, [palette]);
+  }, [future, palette, harmony, animatePaletteUpdate]);
 
   // Callback to clean up previous palette AFTER animation completes
-  // This prevents the "End Flash" by ensuring overlay isn't removed until invisible
   const handleTransitionComplete = useCallback(() => {
       setPreviousPalette([]);
+      setIsTransitioning(false);
   }, []);
 
   const createNewPalette = useCallback((specificHarmony?: string) => {
@@ -176,7 +160,7 @@ const App: React.FC = () => {
     const activeElement = document.activeElement;
     const isInputActive = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA';
 
-    if (event.code === 'Space' && !isInputActive) {
+    if (event.code === 'Space' && !isInputActive && appView === AppView.Palette) {
       event.preventDefault();
       createNewPalette();
     }
@@ -189,7 +173,7 @@ const App: React.FC = () => {
             handleUndo();
         }
     }
-  }, [createNewPalette, handleUndo, handleRedo]);
+  }, [createNewPalette, handleUndo, handleRedo, appView]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyPress);
@@ -292,27 +276,6 @@ const App: React.FC = () => {
   const deleteFavorite = (favPalette: string[]) => {
       setFavoritePalettes(prev => prev.filter(p => JSON.stringify(p) !== JSON.stringify(favPalette)));
   };
-  
-  const handleGenerateMockup = async (prompt: string, image?: { data: string; mimeType: string }) => {
-      setIsLoading(true);
-      setError(null);
-      try {
-          const result = await generateImageService(prompt, image);
-          const newImage: GeneratedImage = {
-              id: Date.now().toString(),
-              prompt,
-              data: `data:image/png;base64,${result}`,
-              timestamp: Date.now()
-          };
-          setImageHistory(prev => [newImage, ...prev]);
-          setIsLoading(false);
-          return newImage.data;
-      } catch (e) {
-          setError("Failed to generate image.");
-          setIsLoading(false);
-          return null;
-      }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col font-sans text-gray-900">
@@ -348,19 +311,13 @@ const App: React.FC = () => {
                 canRedo={future.length > 0}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
-                isTransitioning={false} 
+                isTransitioning={isTransitioning} 
                 onTransitionComplete={handleTransitionComplete}
             />
         )}
         
         {appView === AppView.Image && (
-             <ImageGenerator 
-                palette={palette}
-                onGenerate={handleGenerateMockup}
-                isLoading={isLoading}
-                error={error}
-                imageHistory={imageHistory}
-             />
+             <MockupVisualizer palette={palette} />
         )}
 
         {appView === AppView.Trending && (
@@ -371,6 +328,23 @@ const App: React.FC = () => {
                     setAppView(AppView.Palette);
                 });
             }} />
+        )}
+
+        {appView === AppView.Gradients && (
+            <GradientPage 
+                onLoadPalette={(colors) => {
+                    animatePaletteUpdate(() => {
+                        const newPalette = colors.map(hex => createColorObject(hex));
+                        updatePaletteState(newPalette, 'gradient');
+                        setAppView(AppView.Palette);
+                    });
+                }} 
+                currentPalette={palette.map(c => c.hex)}
+            />
+        )}
+
+        {appView === AppView.ImageRecolor && (
+            <ImageRecolorPage currentPalette={palette.map(c => c.hex)} />
         )}
       </main>
 

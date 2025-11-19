@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { Color } from '../types';
 import ColorSwatch from './ColorSwatch';
@@ -74,7 +73,12 @@ const StaticSwatch: React.FC<{ color: Color; isSelected: boolean }> = ({ color, 
             )}
 
             {/* Fake Footer */}
-            <div className="flex flex-col items-center gap-3 mt-auto w-full z-10 opacity-100">
+            <motion.div 
+                initial={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 0, y: 20 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col items-center gap-3 mt-auto w-full z-10"
+            >
                 <div className="text-center w-full flex flex-col items-center relative mt-2">
                     <div className="flex items-center justify-center gap-2 w-full">
                         <div className={`p-1.5 rounded-full ${isDark ? 'text-white/80' : 'text-black/60'}`}>
@@ -86,7 +90,12 @@ const StaticSwatch: React.FC<{ color: Color; isSelected: boolean }> = ({ color, 
                     </div>
                     {showName && <p className={`text-xs capitalize opacity-80 mt-0.5 truncate max-w-full px-2 ${textColor}`}>{colorName}</p>}
                 </div>
-            </div>
+
+                {/* Spacer to match ColorSwatch action buttons layout to prevent jump. 
+                    Buttons are p-2 with w-5 h-5 icons. 16px padding + 20px icon = 36px height. mt-1 is 4px. 
+                */}
+                <div className="h-[36px] mt-1 w-full opacity-0" />
+            </motion.div>
         </div>
     );
 };
@@ -135,35 +144,24 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
   // Ref for the overlay container to handle manual opacity hack
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Use useLayoutEffect to ensure items are updated synchronously before paint, 
-  // preventing a frame where the underlay shows stale data.
+  // We determine if an active transition is occurring
+  const hasActiveTransition = previousPalette.length > 0;
+
+  // Use useLayoutEffect to ensure items are updated synchronously before paint.
+  // We use stable IDs (ignoring Date.now()) to prevent remounting of Swatches during generation.
   useLayoutEffect(() => {
       if (draggedIndex === null) {
           setItems(prevItems => {
-              // Create a pool of available previous items to attempt ID reuse
-              const available = [...prevItems];
-              
-              return palette.map((color, i) => {
-                  // Try to find a matching color in the pool (same Hex)
-                  // We prefer matches that are in the same relative position if duplicates exist
-                  const matchIndex = available.findIndex(p => p.color.hex === color.hex);
-                  
-                  if (matchIndex !== -1) {
-                      // Found match: reuse ID, update color data, remove from pool
-                      const item = available[matchIndex];
-                      available.splice(matchIndex, 1);
-                      return { ...item, color };
-                  }
-                  
-                  // No match (New Color): Generate new ID
-                  return { 
-                      id: `${color.hex}-${i}-${Date.now()}`, 
-                      color 
-                  };
-              });
+              return palette.map((color, i) => ({
+                  // Use the existing ID from the previous state at this index if available.
+                  // This ensures that the DOM node key remains stable per slot, 
+                  // preventing React from remounting the component when the color changes.
+                  id: prevItems[i]?.id ?? `slot-${i}`, 
+                  color
+              }));
           });
       }
-  }, [palette]); // Only update when palette prop changes
+  }, [palette]);
 
   useEffect(() => {
       const handleClickOutside = (event: MouseEvent) => {
@@ -244,6 +242,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
   };
 
   const handleGenerateClick = () => {
+      if (isTransitioning) return;
       generateNewPalette(selectedHarmony === 'random' ? undefined : selectedHarmony);
   };
 
@@ -254,9 +253,6 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
 
   const selectedColor = palette[selectedColorIndex] || palette[0];
   const selectedColorName = selectedColor ? tinycolor(selectedColor.hex).toName() : '';
-
-  // We determine if an active transition is occurring
-  const hasActiveTransition = previousPalette.length > 0;
 
   return (
     <div className="flex flex-col lg:flex-row h-full lg:h-[calc(100vh-80px)] w-full bg-white overflow-hidden">
@@ -273,6 +269,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
             {/* 1. Undo / Redo */}
             <div className="flex gap-4 justify-center w-full">
                  <button
+                    type="button"
                     onClick={onUndo}
                     disabled={!canUndo || isTransitioning}
                     className="flex-1 flex items-center justify-center p-3 bg-white text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed rounded-none active:scale-95 transition-all"
@@ -282,6 +279,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                     <UndoIcon className="w-5 h-5" />
                  </button>
                  <button
+                    type="button"
                     onClick={onRedo}
                     disabled={!canRedo || isTransitioning}
                     className="flex-1 flex items-center justify-center p-3 bg-white text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed rounded-none active:scale-95 transition-all"
@@ -323,6 +321,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                     <div className="relative w-full h-32 overflow-hidden border border-gray-300 group bg-gray-200">
                         <img src={importedImagePreview} alt="Imported source" className="w-full h-full object-cover" />
                         <button 
+                            type="button"
                             onClick={() => onExtractFromImage(new File([], ''))} // Re-trigger file select logic roughly
                             className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium"
                         >
@@ -338,6 +337,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                     </div>
                 ) : (
                     <button
+                        type="button"
                         onClick={handleImportClick}
                         disabled={isImporting}
                         className="flex items-center justify-center gap-2 w-full p-3 bg-white text-gray-700 border border-gray-300 hover:border-gray-400 hover:bg-gray-50 shadow-sm transition-all"
@@ -371,6 +371,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                         disabled={isImporting}
                     />
                     <button 
+                        type="button"
                         onClick={handleUrlImport}
                         disabled={!imageUrl.trim() || isImporting}
                         className="absolute right-2 text-[#1982c4] disabled:text-gray-300 hover:text-[#156fba]"
@@ -412,6 +413,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                             isSelected={hasActiveTransition ? false : selectedColorIndex === index}
                             onClick={() => setSelectedColorIndex(index)}
                             onOpenDetails={() => handleOpenDetails(item.color)}
+                            isTransitioning={hasActiveTransition}
                         />
                     ))}
                 </div>
@@ -420,7 +422,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                 {hasActiveTransition && (
                     <div 
                         ref={overlayRef}
-                        className="absolute inset-0 z-20 pointer-events-none flex w-full h-full"
+                        className="absolute inset-0 z-50 pointer-events-none flex w-full h-full"
                     >
                          {previousPalette.map((color, index) => {
                             const isSelected = index === selectedColorIndex;
@@ -430,7 +432,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                                     className="flex-1 h-full min-w-0"
                                     style={{
                                         // Apply selected styles manually to the overlay container to match ColorSwatch state
-                                        zIndex: isSelected ? 30 : 1, 
+                                        zIndex: isSelected ? 60 : 51, 
                                         scale: isSelected ? 1.02 : 1,
                                         boxShadow: isSelected ? "0 20px 25px -5px rgba(0, 0, 0, 0.1)" : "none"
                                     }}
@@ -477,6 +479,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
             {/* 1. Generate Actions (Top) */}
             <div className="flex flex-col gap-0 shadow-sm">
                 <button
+                    type="button"
                     onClick={handleGenerateClick}
                     disabled={isTransitioning}
                     className="w-full py-4 bg-[#1982c4] text-white font-bold text-lg shadow-md hover:bg-[#156fba] transition-colors relative z-10 disabled:opacity-80 disabled:cursor-wait"
@@ -570,6 +573,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
             <div className="mt-auto flex flex-col gap-3 pt-2">
                 {/* Favorite Button */}
                 <button 
+                    type="button"
                     onClick={onToggleFavorite}
                     className={`flex items-center justify-center gap-3 w-full p-3 border transition-all group ${isCurrentPaletteFavorite ? 'bg-[#ffca3a]/10 border-[#ffca3a] text-gray-900' : 'bg-white border-gray-300 hover:bg-gray-50 text-gray-700'}`}
                 >
@@ -580,6 +584,7 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                 {/* Export Menu */}
                 <div className="relative" ref={exportMenuRef}>
                     <button 
+                        type="button"
                         onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                         className={`flex items-center justify-center gap-3 w-full p-3 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-all ${isExportMenuOpen ? 'bg-gray-100 ring-2 ring-gray-200' : ''}`}
                     >
@@ -589,10 +594,10 @@ const ColorPalette: React.FC<ColorPaletteProps> = ({
                     
                     {isExportMenuOpen && (
                         <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 shadow-xl z-20 flex flex-col animate-in fade-in slide-in-from-bottom-2 duration-200">
-                            <button onClick={() => exportAsJson(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors border-b border-gray-100">JSON Code</button>
-                            <button onClick={() => exportAsSvg(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors border-b border-gray-100">SVG Image</button>
-                            <button onClick={() => exportAsPdf(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors border-b border-gray-100">PDF Document</button>
-                            <button onClick={() => exportAsHtml(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors">HTML Page</button>
+                            <button type="button" onClick={() => exportAsJson(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors border-b border-gray-100">JSON Code</button>
+                            <button type="button" onClick={() => exportAsSvg(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors border-b border-gray-100">SVG Image</button>
+                            <button type="button" onClick={() => exportAsPdf(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors border-b border-gray-100">PDF Document</button>
+                            <button type="button" onClick={() => exportAsHtml(palette)} className="px-4 py-3 text-sm text-left hover:bg-gray-50 text-gray-700 transition-colors">HTML Page</button>
                         </div>
                     )}
                 </div>

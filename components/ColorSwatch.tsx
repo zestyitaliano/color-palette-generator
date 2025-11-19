@@ -20,6 +20,8 @@ interface ColorSwatchProps {
   isSelected: boolean;
   onClick: () => void;
   onOpenDetails: () => void;
+  enableLayout?: boolean;
+  isTransitioning?: boolean;
 }
 
 const ContrastInfo: React.FC<{ base: string; against: string }> = ({ base, against }) => {
@@ -50,7 +52,9 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
     onUpdateColor,
     isSelected,
     onClick,
-    onOpenDetails
+    onOpenDetails,
+    enableLayout = true,
+    isTransitioning = false
 }) => {
   const [copied, setCopied] = useState(false);
   const [inputValue, setInputValue] = useState(color.hex);
@@ -142,7 +146,8 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
 
   return (
     <motion.div
-      layout // Enable automatic layout animations for smooth swapping
+      layout={enableLayout && !isTransitioning}
+      initial={false}
       draggable="true"
       onDragStart={handleDragStartInternal as any}
       onDragEnter={() => onDragEnter(index)}
@@ -179,25 +184,24 @@ const ColorSwatch: React.FC<ColorSwatchProps> = ({
       }}
     >
         {/* Base Color Marker */}
-        {isBaseColor && (
+        {isBaseColor && !isTransitioning && (
             <div className={`absolute top-0 left-0 right-0 p-1 bg-white/90 text-[#1982c4] text-[10px] text-center font-bold uppercase tracking-wider backdrop-blur-sm shadow-sm z-10 transition-opacity duration-200`}>
                 Base Color
             </div>
         )}
         
         {/* Lock Indicator */}
-        {color.isLocked && (
-            <motion.div 
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+        {color.isLocked && !isTransitioning && (
+            <div 
                 className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-3 backdrop-blur-sm shadow-sm ring-1 pointer-events-none z-10 ${isDark ? 'bg-black/20 ring-white/10' : 'bg-white/30 ring-black/5'}`}
             >
                 <LockIcon className={`w-6 h-6 ${textColor} transition-colors duration-300`} />
-            </motion.div>
+            </div>
         )}
 
       {/* Footer Actions */}
-      <div className="flex flex-col items-center gap-3 mt-auto w-full z-10">
+      {/* Hide footer content during active shutter transitions to prevent visual double-rendering/jumping */}
+      <div className={`flex flex-col items-center gap-3 mt-auto w-full z-10 transition-opacity duration-200 ${isTransitioning ? 'opacity-0' : 'opacity-100'}`}>
         
         {baseColorForContrast && !isBaseColor && (
             <ContrastInfo base={baseColorForContrast} against={color.hex} />

@@ -60,6 +60,21 @@ export const TrendingIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => 
     </svg>
 );
 
+export const GradientIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+    <svg {...navIconProps} {...props}>
+        <rect x="2" y="4" width="20" height="16" rx="4" />
+        <line x1="6" y1="12" x2="18" y2="12" strokeOpacity="0.5" strokeDasharray="2 2"></line>
+    </svg>
+);
+
+export const RecolorIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...navIconProps} {...props}>
+    <rect x="3" y="4" width="18" height="14" rx="3" />
+    <circle cx="9" cy="10" r="2" />
+    <path d="M12 14l2-2 4 4" />
+  </svg>
+);
+
 export const MessageSquareIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
     <svg {...navIconProps} {...props}>
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
@@ -185,5 +200,15 @@ export const ColorPickerIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) 
     <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path>
     <path d="M2 2l7.586 7.586"></path>
     <circle cx="11" cy="11" r="2"></circle>
+  </svg>
+);
+
+export const ShuffleIcon: React.FC<React.SVGProps<SVGSVGElement>> = (props) => (
+  <svg {...iconProps} {...props}>
+    <polyline points="16 3 21 3 21 8"></polyline>
+    <line x1="4" y1="20" x2="21" y2="3"></line>
+    <polyline points="21 16 21 21 16 21"></polyline>
+    <line x1="15" y1="15" x2="21" y2="21"></line>
+    <line x1="4" y1="4" x2="9" y2="9"></line>
   </svg>
 );

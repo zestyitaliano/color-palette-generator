@@ -11,6 +11,21 @@ import {
 } from 'culori';
 import { Color } from '../types';
 
+export type HexColor = string;
+
+export const clampHex = (value: string): HexColor => {
+  let v = value.trim();
+  if (!v.startsWith('#')) v = `#${v}`;
+  // Support both shorthand (#RGB) and full hex (#RRGGBB)
+  if (v.length > 7) v = v.slice(0, 7);
+  return v.toUpperCase();
+};
+
+export const isValidHex = (value: string): boolean => {
+  const v = value.trim().toLowerCase();
+  return /^#([0-9a-f]{3}|[0-9a-f]{6})$/.test(v);
+};
+
 const PALETTE_SIZE = 5;
 const toLch = converter('lch');
 const toP3 = converter('p3');

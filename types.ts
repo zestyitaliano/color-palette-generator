@@ -16,12 +16,13 @@ export enum AppView {
   Palette = 'palette',
   Image = 'image',
   Trending = 'trending',
+  Gradients = 'gradients',
+  ImageRecolor = 'imageRecolor',
 }
 
 export interface GeneratedImage {
-  id: string;
-  prompt: string;
-  data: string; // base64
+  id: string | number;
+  data: string;
   timestamp: number;
 }
 

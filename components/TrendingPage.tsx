@@ -81,6 +81,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onLoadPalette }) => {
         {totalPages > 1 && (
             <div className="flex justify-center items-center gap-2 mt-12 mb-4">
                 <button 
+                    type="button"
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600"
@@ -94,6 +95,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onLoadPalette }) => {
                     return (
                         <button
                             key={i}
+                            type="button"
                             onClick={() => handlePageChange(pageNum)}
                             className={`w-8 h-8 rounded-full text-sm font-medium transition-all duration-200 ${
                                 currentPage === pageNum 
@@ -107,6 +109,7 @@ const TrendingPage: React.FC<TrendingPageProps> = ({ onLoadPalette }) => {
                 })}
 
                 <button 
+                    type="button"
                     onClick={() => handlePageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-full hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-transparent transition-colors text-gray-600"

@@ -41,6 +41,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, user, onLo
       {/* Modal */}
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm bg-white shadow-2xl z-50 p-8 border border-gray-100 animate-in zoom-in-95 duration-200">
         <button 
+            type="button"
             onClick={onClose}
             className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
         >
@@ -68,6 +69,7 @@ const AccountModal: React.FC<AccountModalProps> = ({ isOpen, onClose, user, onLo
                 </div>
 
                 <button 
+                    type="button"
                     onClick={() => {
                         onLogout();
                         onClose();
